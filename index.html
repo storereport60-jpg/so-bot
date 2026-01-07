@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Sistem Laporan Toko</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- React -->
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
+<style>
+body{margin:0;font-family:Segoe UI,Arial;background:#f4f6fb}
+.center{min-height:100vh;display:flex;align-items:center;justify-content:center}
+.container{max-width:1200px;margin:20px auto;padding:0 15px}
+.card{background:#fff;border-radius:18px;padding:30px;box-shadow:0 10px 30px rgba(0,0,0,.08)}
+.login{max-width:420px;width:100%}
+.form-group{margin-bottom:15px}
+.form-group input{width:100%;padding:14px;border-radius:12px;border:1px solid #cbd5e1}
+button{border:none;border-radius:12px;padding:14px;font-weight:600;color:#fff;cursor:pointer}
+.primary{background:#2563eb}
+.secondary{background:#475569}
+.success{background:#16a34a}
+.warning{background:#f59e0b}
+.danger{background:#dc2626}
+.refresh{background:#0d9488}
+.menu{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.actions{margin-top:15px;display:flex;gap:10px;flex-wrap:wrap}
+iframe{width:100%;height:78vh;border:none;border-radius:16px}
+.loading{position:absolute;inset:0;background:rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600}
+.footer{text-align:center;margin:15px;font-size:13px;color:#64748b}
+</style>
+</head>
+
+<body>
+<div id="root"></div>
+
+<script>
+/* ================= BASIC ANTI INSPECT ================= */
+document.addEventListener("contextmenu", e => e.preventDefault());
+document.addEventListener("keydown", e => {
+  if (
+    e.key === "F12" ||
+    (e.ctrlKey && e.shiftKey && ["I","J","C"].includes(e.key)) ||
+    (e.ctrlKey && e.key === "U")
+  ) {
+    e.preventDefault();
+    alert("Akses tidak diizinkan");
+    location.reload();
+  }
+});
+</script>
+
+<script>
+/* ================= FIREBASE ================= */
+firebase.initializeApp({
+  apiKey: "AIzaSyCld9VE6XdF-tbcv1E-gBZ2ACeJBklW-Go",
+  authDomain: "server-laporan.firebaseapp.com",
+  databaseURL: "https://server-laporan-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "server-laporan"
+});
+const rtdb = firebase.database();
+
+/* ================= CONFIG PROXY ================= */
+const PROXY = "https://laporan-proxy.yourname.workers.dev/api";
+const TOKEN = "laporan_super_aman_2026";
+
+/* ================= UTIL ================= */
+const { useState } = React;
+const fmt = d => String(d.getDate()).padStart(2,"0")+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+d.getFullYear();
+const today = () => fmt(new Date());
+const greeting = () => {
+  const h = new Date().getHours();
+  if(h<11) return "Selamat Pagi";
+  if(h<15) return "Selamat Siang";
+  if(h<18) return "Selamat Sore";
+  return "Selamat Malam";
+};
+
+/* ================= APP ================= */
+function App(){
+  const [user,setUser] = useState(null);
+  const [username,setUsername] = useState("");
+  const [menu,setMenu] = useState("");
+  const [date,setDate] = useState("");
+  const [start,setStart] = useState("");
+  const [end,setEnd] = useState("");
+  const [src,setSrc] = useState("");
+  const [loading,setLoading] = useState(false);
+
+  const login = async () => {
+    if(!username) return alert("Username wajib diisi");
+    const snap = await rtdb.ref("userList").once("value");
+    let found=null;
+    Object.values(snap.val()||{}).forEach(u=>{
+      if(u.username?.toUpperCase()===username) found=u;
+    });
+    if(!found) return alert("User tidak terdaftar");
+    if(new Date(found.expired)<new Date()) return alert("Akun expired");
+    setUser(found);
+  };
+
+  const loadSecure = async (path) => {
+    setLoading(true);
+    const res = await fetch(path,{
+      headers:{ "x-auth-token": TOKEN }
+    });
+    const blob = await res.blob();
+    setSrc(URL.createObjectURL(blob));
+  };
+
+  const openAuto = (m) => {
+    setMenu(m); setDate(""); setStart(""); setEnd("");
+    let q="";
+    if(m==="last") q=`storeId=${user.storeId}&dateSo=${today()}`;
+    if(m==="notmain") q=`storeId=${user.storeId}&dateTx=${today()}`;
+    if(m==="disc") q=`storeId=${user.storeId}&dateSo=${today()}&filter_tag=All`;
+    loadSecure(`${PROXY}/${m}?${q}`);
+  };
+
+  const loadManual = () => {
+    if(menu==="adjust"){
+      if(!date) return alert("Pilih tanggal");
+      loadSecure(`${PROXY}/adjust?storeId=${user.storeId}&dateSo=${date}`);
+    }
+    if(menu==="daily"){
+      if(!start||!end) return alert("Pilih periode");
+      loadSecure(`${PROXY}/daily?storeId=${user.storeId}&periode1=${start}&periode2=${end}`);
+    }
+    if(menu==="lap2324"){
+      if(!date) return alert("Pilih tanggal");
+      loadSecure(`${PROXY}/lap2324?storeId=${user.storeId}&periode1=${date}`);
+    }
+  };
+
+  if(!user){
+    return React.createElement("div",{className:"center"},
+      React.createElement("div",{className:"card login"},
+        React.createElement("h2",null,"Login Sistem"),
+        React.createElement("div",{className:"form-group"},
+          React.createElement("input",{placeholder:"USERNAME",value:username,
+            onChange:e=>setUsername(e.target.value.toUpperCase()),
+            onKeyDown:e=>e.key==="Enter"&&login()
+          })
+        ),
+        React.createElement("button",{className:"primary",onClick:login},"Masuk")
+      )
+    );
+  }
+
+  return React.createElement("div",{className:"container"},
+    React.createElement("div",{className:"card"},
+      React.createElement("h3",null,`${greeting()} ${user.username}`),
+      React.createElement("div",{className:"menu"},
+        React.createElement("button",{className:"primary",onClick:()=>openAuto("last")},"Selisih Terakhir"),
+        React.createElement("button",{className:"secondary",onClick:()=>setMenu("adjust")},"SO Adjust"),
+        React.createElement("button",{className:"danger",onClick:()=>setMenu("daily")},"Daily Performance"),
+        React.createElement("button",{className:"success",onClick:()=>openAuto("notmain")},"PLU Tidak Main"),
+        React.createElement("button",{className:"warning",onClick:()=>openAuto("disc")},"Discontinue"),
+        React.createElement("button",{className:"warning",onClick:()=>setMenu("lap2324")},"Laporan 23–24")
+      ),
+
+      (menu==="adjust"||menu==="lap2324") &&
+        React.createElement("div",{className:"actions"},
+          React.createElement("input",{type:"date",onChange:e=>setDate(fmt(new Date(e.target.value)))}),
+          React.createElement("button",{className:"primary",onClick:loadManual},"Tampilkan")
+        ),
+
+      menu==="daily" &&
+        React.createElement("div",{className:"actions"},
+          React.createElement("input",{type:"date",onChange:e=>setStart(fmt(new Date(e.target.value)))}),
+          React.createElement("input",{type:"date",onChange:e=>setEnd(fmt(new Date(e.target.value)))}),
+          React.createElement("button",{className:"primary",onClick:loadManual},"Tampilkan")
+        )
+    ),
+
+    src && React.createElement("div",{style:{position:"relative",marginTop:"20px"}},
+      loading && React.createElement("div",{className:"loading"},"Memuat laporan..."),
+      React.createElement("iframe",{src,onLoad:()=>setLoading(false)})
+    ),
+
+    React.createElement("div",{className:"footer"},"© "+new Date().getFullYear()+" Sistem Laporan Toko")
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root"))
+  .render(React.createElement(App));
+</script>
+</body>
+</html>
