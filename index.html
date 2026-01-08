@@ -14,33 +14,22 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
 <style>
-body{margin:0;font-family:"Segoe UI",Arial;background:#f4f6fb}
+body{margin:0;font-family:Segoe UI,Arial;background:#f4f6fb}
 .center{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
 .container{max-width:1200px;margin:20px auto;padding:0 15px}
 .card{background:#fff;border-radius:18px;padding:30px;box-shadow:0 10px 30px rgba(0,0,0,.08)}
 .login{max-width:420px;width:100%}
-.login h1{text-align:center;margin-bottom:5px}
-.login p{text-align:center;color:#64748b;margin-bottom:25px}
-.form-group{margin-bottom:18px}
-.form-group label{font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px}
-.form-group input{width:100%;padding:14px;font-size:15px;border-radius:12px;border:1px solid #cbd5e1}
-button{cursor:pointer;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:600;color:#fff}
+.menu{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+button{border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:600;color:#fff;cursor:pointer}
 .primary{background:#2563eb}
 .secondary{background:#475569}
 .success{background:#16a34a}
 .warning{background:#f59e0b}
 .danger{background:#dc2626}
 .refresh{background:#0d9488}
-.header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-.badge{background:#e0f2fe;color:#0369a1;padding:6px 12px;border-radius:20px;font-size:13px}
-.notice{background:#fff7ed;border-left:5px solid #fb923c;padding:12px;border-radius:8px;margin:15px 0;font-size:14px}
-.menu{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
 .actions{margin-top:15px;display:flex;gap:10px;flex-wrap:wrap}
-.iframe-box{position:relative;margin-top:20px}
 iframe{width:100%;height:78vh;border:none;border-radius:16px}
-.loading{position:absolute;inset:0;background:rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;color:#2563eb;z-index:20}
-.footer{text-align:center;margin:15px 0;font-size:13px;color:#64748b}
-.login button{width:100%;display:block;margin-top:10px}
+.loading{position:absolute;inset:0;background:rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;font-weight:600}
 </style>
 </head>
 
@@ -48,7 +37,7 @@ iframe{width:100%;height:78vh;border:none;border-radius:16px}
 <div id="root"></div>
 
 <script>
-/* ================= CONFIG PROXY ================= */
+/* ================= CONFIG ================= */
 const PROXY = "https://proxy-laporan.storereport60.workers.dev/api";
 const TOKEN = "lp_9XvA2sQm8D7WkP1Lr5YF";
 
@@ -65,21 +54,18 @@ const rtdb = firebase.database();
 const { useState } = React;
 const fmt = d => String(d.getDate()).padStart(2,"0")+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+d.getFullYear();
 const today = () => fmt(new Date());
-const greeting = () => ["Pagi","Siang","Sore","Malam"][Math.min(3,Math.floor((new Date().getHours()+1)/6))];
 
-/* ================= APP ================= */
 function App(){
-  const [user,setUser] = useState(null);
-  const [username,setUsername] = useState("");
-  const [menu,setMenu] = useState("");
-  const [date,setDate] = useState("");
-  const [start,setStart] = useState("");
-  const [end,setEnd] = useState("");
-  const [src,setSrc] = useState("");
-  const [loading,setLoading] = useState(false);
+  const [user,setUser]=useState(null);
+  const [username,setUsername]=useState("");
+  const [menu,setMenu]=useState("");
+  const [date,setDate]=useState("");
+  const [start,setStart]=useState("");
+  const [end,setEnd]=useState("");
+  const [src,setSrc]=useState("");
+  const [loading,setLoading]=useState(false);
 
-  const login = async () => {
-    if(!username) return alert("Username wajib diisi");
+  const login = async()=>{
     const snap = await rtdb.ref("userList").once("value");
     let found=null;
     Object.values(snap.val()||{}).forEach(u=>{
@@ -90,36 +76,29 @@ function App(){
     setUser(found);
   };
 
-  const openAuto = (m) => {
-    setMenu(m); setDate(""); setStart(""); setEnd("");
-    const params = new URLSearchParams({
+  const openAuto=(m)=>{
+    const p=new URLSearchParams({
       storeId:user.storeId,
-      date:today()
+      date:today(),
+      token:TOKEN
     });
     setLoading(true);
-    setSrc(`${PROXY}/${m}?${params}`);
+    setSrc(`${PROXY}/${m}?${p}`);
   };
 
-  const loadManual = () => {
-    let params=new URLSearchParams({storeId:user.storeId});
-    if(menu==="adjust"){ if(!date)return alert("Tanggal"); params.append("date",date); }
-    if(menu==="daily"){ if(!start||!end)return alert("Periode"); params.append("start",start); params.append("end",end); }
+  const loadManual=()=>{
+    const p=new URLSearchParams({storeId:user.storeId,token:TOKEN});
+    if(menu==="adjust"){ if(!date)return alert("Tanggal"); p.append("date",date); }
+    if(menu==="daily"){ if(!start||!end)return alert("Periode"); p.append("start",start); p.append("end",end); }
     setLoading(true);
-    setSrc(`${PROXY}/${menu}?${params}`);
-  };
-
-  const load2324 = () => {
-    if(!date)return alert("Tanggal");
-    const params=new URLSearchParams({storeId:user.storeId,date});
-    setLoading(true);
-    setSrc(`${PROXY}/lap2324?${params}`);
+    setSrc(`${PROXY}/${menu}?${p}`);
   };
 
   if(!user){
     return React.createElement("div",{className:"center"},
       React.createElement("div",{className:"card login"},
-        React.createElement("h1",null,"Login Sistem"),
-        React.createElement("input",{onChange:e=>setUsername(e.target.value),placeholder:"USERNAME"}),
+        React.createElement("h2",null,"Login"),
+        React.createElement("input",{placeholder:"USERNAME",onChange:e=>setUsername(e.target.value)}),
         React.createElement("button",{className:"primary",onClick:login},"Masuk")
       )
     );
@@ -127,63 +106,38 @@ function App(){
 
   return React.createElement("div",{className:"container"},
     React.createElement("div",{className:"card"},
-      React.createElement("div",{className:"header"},
-        React.createElement("h3",null,`Selamat ${greeting()} ${user.username}`),
-        React.createElement("span",{className:"badge"},"Expired: "+user.expired)
-      ),
-
       React.createElement("div",{className:"menu"},
         React.createElement("button",{className:"primary",onClick:()=>openAuto("last")},"Selisih Terakhir"),
-        React.createElement("button",{className:"secondary",onClick:()=>{setMenu("adjust");setSrc("");}},"SO Adjust"),
-        React.createElement("button",{className:"danger",onClick:()=>{setMenu("daily");setSrc("");}},"Daily Performance"),
+        React.createElement("button",{className:"secondary",onClick:()=>{setMenu("adjust");setSrc("")}},"SO Adjust"),
+        React.createElement("button",{className:"danger",onClick:()=>{setMenu("daily");setSrc("")}},"Daily Performance"),
         React.createElement("button",{className:"success",onClick:()=>openAuto("notmain")},"PLU Tidak Main"),
-        React.createElement("button",{className:"warning",onClick:()=>openAuto("disc")},"Discontinue"),
-        React.createElement("button",{className:"warning",onClick:()=>{setMenu("lap2324");setSrc("");}},"📊 Laporan 23–24")
+        React.createElement("button",{className:"warning",onClick:()=>openAuto("disc")},"Discontinue")
       ),
 
-      menu==="adjust" && React.createElement("div",{className:"actions"},
-        React.createElement("input",{type:"date",onChange:e=>setDate(fmt(new Date(e.target.value)))}),
-        React.createElement("button",{className:"primary",onClick:loadManual},"Tampilkan")
-      ),
+      menu==="adjust" &&
+        React.createElement("div",{className:"actions"},
+          React.createElement("input",{type:"date",onChange:e=>setDate(fmt(new Date(e.target.value)))}),
+          React.createElement("button",{className:"primary",onClick:loadManual},"Tampilkan")
+        ),
 
-      menu==="daily" && React.createElement("div",{className:"actions"},
-        React.createElement("input",{type:"date",onChange:e=>setStart(fmt(new Date(e.target.value)))}),
-        React.createElement("input",{type:"date",onChange:e=>setEnd(fmt(new Date(e.target.value)))}),
-        React.createElement("button",{className:"primary",onClick:loadManual},"Tampilkan")
-      ),
+      menu==="daily" &&
+        React.createElement("div",{className:"actions"},
+          React.createElement("input",{type:"date",onChange:e=>setStart(fmt(new Date(e.target.value)))}),
+          React.createElement("input",{type:"date",onChange:e=>setEnd(fmt(new Date(e.target.value)))}),
+          React.createElement("button",{className:"primary",onClick:loadManual},"Tampilkan")
+        )
+    ),
 
-      menu==="lap2324" && React.createElement("div",{className:"actions"},
-        React.createElement("input",{type:"date",onChange:e=>setDate(fmt(new Date(e.target.value)))}),
-        React.createElement("button",{className:"primary",onClick:load2324},"Tampilkan")
-      ),
-
-      src && React.createElement("div",{className:"actions"},
-        React.createElement("button",{className:"refresh",onClick:()=>{setLoading(true);setSrc(src+"&r="+Date.now());}},"🔄 Refresh"),
-        React.createElement("button",{className:"danger",onClick:()=>{setUser(null);setSrc("");}},"Logout")
+    src &&
+      React.createElement("div",{style:{position:"relative",marginTop:"20px"}},
+        loading && React.createElement("div",{className:"loading"},"⏳ Memuat..."),
+        React.createElement("iframe",{src,onLoad:()=>setLoading(false)})
       )
-    ),
-
-    src && React.createElement("div",{className:"iframe-box"},
-      loading && React.createElement("div",{className:"loading"},"⏳ Memuat laporan..."),
-      React.createElement("iframe",{src,referrerPolicy:"no-referrer",onLoad:()=>setLoading(false)})
-    ),
-
-    React.createElement("div",{className:"footer"},"© "+new Date().getFullYear()+" Sistem Laporan Toko")
   );
 }
-
-/* ================= GLOBAL TOKEN ================= */
-const _fetch = window.fetch;
-window.fetch = (url,opt={})=>{
-  opt.headers = Object.assign({},opt.headers,{
-    "x-auth-token":TOKEN
-  });
-  return _fetch(url,opt);
-};
 
 ReactDOM.createRoot(document.getElementById("root"))
   .render(React.createElement(App));
 </script>
 </body>
 </html>
-
