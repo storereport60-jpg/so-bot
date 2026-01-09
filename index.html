@@ -2,145 +2,184 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Sistem Laporan Toko</title>
+<title>Admin Panel - User Manager</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
 <style>
-body{margin:0;font-family:Segoe UI,Arial;background:#f4f6fb}
-.center{min-height:100vh;display:flex;align-items:center;justify-content:center}
-.container{max-width:1200px;margin:20px auto;padding:0 15px}
-.card{background:#fff;border-radius:18px;padding:30px;box-shadow:0 10px 30px rgba(0,0,0,.08)}
-.menu{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
-button{border:none;border-radius:14px;padding:14px;font-weight:600;color:#fff;cursor:pointer}
-.primary{background:#2563eb}
-.secondary{background:#475569}
-.success{background:#16a34a}
-.warning{background:#f59e0b}
-.danger{background:#dc2626}
-.refresh{background:#0d9488}
-.iframe-box{position:relative;margin-top:20px}
-iframe{width:100%;height:78vh;border:none;border-radius:16px;background:#fff}
-.loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.8);font-weight:600}
+body{font-family:Arial;background:#eef2f6;margin:0}
+.card{background:#fff;border-radius:8px;padding:20px;box-shadow:0 4px 12px rgba(0,0,0,.1)}
+.container{max-width:1200px;margin:auto}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left;font-size:14px}
+th{background:#f5f5f5}
+input,button{padding:8px;border-radius:6px;border:1px solid #ccc}
+button{cursor:pointer;border:none;color:#fff;font-weight:600}
+.primary{background:#1e88e5}
+.success{background:#43a047}
+.warning{background:#fb8c00}
+.danger{background:#e53935}
+.hidden{display:none}
+.flex{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.badge{background:#e8f1ff;color:#1e88e5;padding:6px 12px;border-radius:20px;font-size:13px;font-weight:600}
+.welcome{
+  background:#f1f8ff;
+  border-left:5px solid #1e88e5;
+  padding:12px 15px;
+  border-radius:6px;
+  margin:15px 0;
+  font-size:14px;
+}
 </style>
 </head>
 
 <body>
-<div id="root"></div>
+
+<!-- LOGIN ADMIN -->
+<div id="loginWrap" style="min-height:100vh;display:flex;align-items:center;justify-content:center">
+  <div class="card" style="max-width:380px;width:100%">
+    <h2 style="text-align:center">🔐 Admin Login</h2>
+    <input id="pin" type="password" maxlength="6"
+      placeholder="Masukkan PIN Admin (6 digit)"
+      oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+      style="width:100%;margin-bottom:12px">
+    <button class="primary" style="width:100%" onclick="loginAdmin()">LOGIN</button>
+  </div>
+</div>
+
+<!-- PANEL ADMIN -->
+<div id="panel" class="container hidden">
+  <div class="card" style="margin:30px">
+
+    <h2>Administrator Area</h2>
+
+    <div class="welcome">
+      👋 <strong>Selamat datang Pak Imron</strong><br>
+      Semoga hari Anda menyenangkan dan seluruh pekerjaan berjalan lancar.
+    </div>
+
+    <h3>User Management</h3>
+
+    <div class="flex">
+      <input id="u" placeholder="USERNAME" oninput="this.value=this.value.toUpperCase()">
+      <input id="s" placeholder="STORE ID" oninput="this.value=this.value.toUpperCase()">
+      <input id="days" type="number" min="1" placeholder="Masa aktif (hari)">
+      <button class="success" onclick="addUser()">Tambah</button>
+    </div>
+
+    <div class="flex" style="margin-top:20px">
+      <input id="search" placeholder="🔎 Cari username / store ID" oninput="renderTable()">
+      <span class="badge">👥 Total User: <span id="total">0</span></span>
+    </div>
+
+    <table style="margin-top:10px">
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Store</th>
+          <th>Expired</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody id="list"></tbody>
+    </table>
+
+    <button class="danger" style="margin-top:15px" onclick="logout()">Logout</button>
+  </div>
+</div>
 
 <script>
-/* ===== CONFIG ===== */
-const PROXY = "https://proxy-laporan.storereport60.workers.dev/api";
-const TOKEN = "lp_9XvA2sQm8D7WkP1Lr5YF";
-
-/* ===== FIREBASE ===== */
 firebase.initializeApp({
   apiKey: "AIzaSyCld9VE6XdF-tbcv1E-gBZ2ACeJBklW-Go",
   authDomain: "server-laporan.firebaseapp.com",
   databaseURL: "https://server-laporan-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "server-laporan"
 });
-const rtdb = firebase.database();
+const db = firebase.database();
+const ADMIN_PIN = "500000";
+let USERS = {};
 
-/* ===== UTIL ===== */
-const { useState } = React;
-const fmt = d => String(d.getDate()).padStart(2,"0")+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+d.getFullYear();
-const today = () => fmt(new Date());
+function loginAdmin(){
+  const pin=document.getElementById("pin").value;
+  if(pin.length!==6) return alert("PIN harus 6 digit");
+  if(pin!==ADMIN_PIN) return alert("PIN salah");
 
-function App(){
-  const [user,setUser]=useState(null);
-  const [username,setUsername]=useState("");
-  const [menu,setMenu]=useState("");
-  const [date,setDate]=useState("");
-  const [start,setStart]=useState("");
-  const [end,setEnd]=useState("");
-  const [src,setSrc]=useState("");
-  const [loading,setLoading]=useState(false);
-
-  const login = async()=>{
-    const snap=await rtdb.ref("userList").once("value");
-    const u=Object.values(snap.val()||{}).find(v=>v.username===username);
-    if(!u) return alert("User tidak ditemukan");
-    if(new Date(u.expired)<new Date()) return alert("Akun expired");
-    setUser(u);
-  };
-
-  const openAuto = m=>{
-    const p=new URLSearchParams({
-      token:TOKEN,
-      storeId:user.storeId,
-      date:today()
-    });
-    setMenu(m);setLoading(true);
-    setSrc(`${PROXY}/${m}?${p}`);
-  };
-
-  const loadManual = ()=>{
-    const p=new URLSearchParams({token:TOKEN,storeId:user.storeId});
-    if(menu==="adjust"){ if(!date)return alert("Tanggal"); p.append("date",date); }
-    if(menu==="daily"){ if(!start||!end)return alert("Periode"); p.append("start",start); p.append("end",end); }
-    setLoading(true);
-    setSrc(`${PROXY}/${menu}?${p}`);
-  };
-
-  const load2324=()=>{
-    if(!date)return alert("Tanggal");
-    const p=new URLSearchParams({token:TOKEN,storeId:user.storeId,date});
-    setLoading(true);
-    setSrc(`${PROXY}/lap2324?${p}`);
-  };
-
-  if(!user){
-    return React.createElement("div",{className:"center"},
-      React.createElement("div",{className:"card"},
-        React.createElement("h2",null,"Login"),
-        React.createElement("input",{placeholder:"USERNAME",onChange:e=>setUsername(e.target.value)}),
-        React.createElement("button",{className:"primary",onClick:login},"Masuk")
-      )
-    );
-  }
-
-  return React.createElement("div",{className:"container"},
-    React.createElement("div",{className:"card"},
-      React.createElement("h3",null,"Selamat Datang "+user.username),
-      React.createElement("div",{className:"menu"},
-        ["last","adjust","daily","notmain","disc"].map(k=>
-          React.createElement("button",{className:"primary",onClick:()=>openAuto(k)},k)
-        ),
-        React.createElement("button",{className:"warning",onClick:()=>{setMenu("lap2324");setSrc("")}},"Laporan 23–24")
-      ),
-
-      menu==="adjust"&&React.createElement("div",null,
-        React.createElement("input",{type:"date",onChange:e=>setDate(fmt(new Date(e.target.value)))}),
-        React.createElement("button",{className:"primary",onClick:loadManual},"Tampilkan")
-      ),
-
-      menu==="daily"&&React.createElement("div",null,
-        React.createElement("input",{type:"date",onChange:e=>setStart(fmt(new Date(e.target.value)))}),
-        React.createElement("input",{type:"date",onChange:e=>setEnd(fmt(new Date(e.target.value)))}),
-        React.createElement("button",{className:"primary",onClick:loadManual},"Tampilkan")
-      ),
-
-      menu==="lap2324"&&React.createElement("div",null,
-        React.createElement("input",{type:"date",onChange:e=>setDate(fmt(new Date(e.target.value)))}),
-        React.createElement("button",{className:"primary",onClick:load2324},"Tampilkan")
-      )
-    ),
-
-    src && React.createElement("div",{className:"iframe-box"},
-      loading && React.createElement("div",{className:"loading"},"Memuat laporan..."),
-      React.createElement("iframe",{src,onLoad:()=>setLoading(false)})
-    )
-  );
+  document.getElementById("loginWrap").style.display="none";
+  const panel=document.getElementById("panel");
+  panel.classList.remove("hidden");
+  panel.style.display="block";
+  loadUsers();
 }
 
-ReactDOM.createRoot(document.getElementById("root"))
-  .render(React.createElement(App));
+function loadUsers(){
+  db.ref("userList").on("value",snap=>{
+    USERS=snap.val()||{};
+    document.getElementById("total").innerText=Object.keys(USERS).length;
+    renderTable();
+  });
+}
+
+function renderTable(){
+  const q=document.getElementById("search").value.toLowerCase();
+  const tbody=document.getElementById("list");
+  tbody.innerHTML="";
+  Object.keys(USERS).forEach(id=>{
+    const u=USERS[id];
+    if(q && !u.username.toLowerCase().includes(q) && !u.storeId.toLowerCase().includes(q)) return;
+    tbody.innerHTML+=`
+    <tr>
+      <td>${u.username}</td>
+      <td>${u.storeId}</td>
+      <td>${u.expired}</td>
+      <td>
+        <button class="warning" onclick="editUser('${id}')">Edit</button>
+        <button class="danger" onclick="delUser('${id}')">Hapus</button>
+      </td>
+    </tr>`;
+  });
+}
+
+function addUser(){
+  const u=document.getElementById("u").value;
+  const s=document.getElementById("s").value;
+  const d=parseInt(document.getElementById("days").value);
+  if(!u||!s||!d) return alert("Lengkapi data");
+
+  const exp=new Date();
+  exp.setDate(exp.getDate()+d);
+  db.ref("userList").push({
+    username:u,
+    storeId:s,
+    expired:exp.toISOString().split("T")[0]
+  });
+
+  document.getElementById("u").value="";
+  document.getElementById("s").value="";
+  document.getElementById("days").value="";
+}
+
+function editUser(id){
+  const cur=USERS[id];
+  const u=prompt("Username:",cur.username);
+  const s=prompt("Store ID:",cur.storeId);
+  const e=prompt("Expired (YYYY-MM-DD):",cur.expired);
+  if(u&&s&&e){
+    db.ref("userList/"+id).update({
+      username:u.toUpperCase(),
+      storeId:s.toUpperCase(),
+      expired:e
+    });
+  }
+}
+
+function delUser(id){
+  if(confirm("Hapus user ini?")) db.ref("userList/"+id).remove();
+}
+
+function logout(){location.reload()}
 </script>
+
 </body>
 </html>
