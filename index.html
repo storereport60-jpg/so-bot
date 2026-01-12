@@ -9,21 +9,49 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <style>
-body { font-family: Arial; background:#f2f2f2; padding:20px }
-.container { max-width:1100px; margin:auto; background:#fff; padding:20px; border-radius:8px }
-input, textarea, select, button { width:100%; padding:8px; margin-bottom:10px }
-button { background:#007bff; color:#fff; border:none; cursor:pointer }
-button:hover { background:#0056b3 }
-table { width:100%; border-collapse:collapse; margin-top:15px }
-th, td { border:1px solid #ddd; padding:6px; text-align:center }
-th { background:#f0f0f0 }
-.edit { background:#28a745 }
-.delete { background:#dc3545 }
-.edit:hover { background:#1e7e34 }
-.delete:hover { background:#bd2130 }
-.row { display:flex; gap:10px }
-.badge-active { color:green; font-weight:bold }
-.badge-inactive { color:red; font-weight:bold }
+body {
+  font-family: Arial, sans-serif;
+  background: #f2f2f2;
+  padding: 20px;
+}
+.container {
+  max-width: 1000px;
+  margin: auto;
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+}
+input, textarea, select, button {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 10px;
+}
+button {
+  background: #007bff;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+button:hover { background: #0056b3; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+th, td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: center;
+}
+th { background: #f0f0f0; }
+.action-btn {
+  padding: 5px 10px;
+  margin: 2px;
+}
+.edit { background: #28a745; }
+.delete { background: #dc3545; }
+.edit:hover { background: #1e7e34; }
+.delete:hover { background: #bd2130; }
 </style>
 </head>
 
@@ -32,12 +60,11 @@ th { background:#f0f0f0 }
 <div class="container">
 <h2>Admin User Telegram</h2>
 
-<!-- FORM -->
 <label>Telegram ID</label>
-<input id="telegramId">
+<input type="text" id="telegramId">
 
 <label>Username</label>
-<input id="username">
+<input type="text" id="username">
 
 <label>Status</label>
 <select id="status">
@@ -48,30 +75,19 @@ th { background:#f0f0f0 }
 <label>Active Until</label>
 <input type="date" id="activeUntil">
 
-<label>Stores (pisahkan koma)</label>
-<textarea id="stores"></textarea>
+<label>Stores (pisahkan dengan koma)</label>
+<textarea id="stores" rows="3"></textarea>
 
-<div class="row">
-  <button onclick="saveUser()">💾 Simpan</button>
-  <button onclick="resetForm()" style="background:#6c757d">Reset</button>
-</div>
+<button onclick="saveUser()">💾 Simpan User</button>
+<button onclick="resetForm()" style="background:#6c757d">🔄 Reset</button>
 
 <hr>
 
-<!-- FILTER -->
-<div class="row">
-  <input placeholder="🔍 Cari Telegram ID / Username" id="search" oninput="renderTable()">
-  <select id="filter" onchange="renderTable()">
-    <option value="all">Semua</option>
-    <option value="active">Aktif</option>
-    <option value="expired">Expired</option>
-  </select>
-</div>
-
+<h3>Daftar User</h3>
 <table>
 <thead>
 <tr>
-  <th>ID</th>
+  <th>Telegram ID</th>
   <th>Username</th>
   <th>Status</th>
   <th>Active Until</th>
@@ -79,13 +95,14 @@ th { background:#f0f0f0 }
   <th>Aksi</th>
 </tr>
 </thead>
-<tbody id="table"></tbody>
+<tbody id="userTable"></tbody>
 </table>
+
 </div>
 
 <script>
-/* Firebase */
-firebase.initializeApp({
+/* Firebase Config */
+const firebaseConfig = {
   apiKey: "AIzaSyChi112l4NC9S0KGF8FUkkLh-CueRtIaDo",
   authDomain: "telegram-laporan-bot.firebaseapp.com",
   databaseURL: "https://telegram-laporan-bot-default-rtdb.asia-southeast1.firebasedatabase.app",
@@ -93,97 +110,93 @@ firebase.initializeApp({
   storageBucket: "telegram-laporan-bot.firebasestorage.app",
   messagingSenderId: "241106458746",
   appId: "1:241106458746:web:7046c964d892eeccb303c3"
-});
+};
 
+firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const ref = db.ref("users");
-let USERS = {};
+const usersRef = db.ref("users");
 
-/* AUTO EXPIRED */
-function autoExpire() {
-  const today = new Date().toISOString().slice(0,10);
-  Object.entries(USERS).forEach(([id,u])=>{
-    if (u.activeUntil < today && u.status === "active") {
-      ref.child(id).update({ status:"inactive" });
-    }
+/* Save / Update */
+function saveUser() {
+  const telegramId = telegramIdEl().value.trim();
+  if (!telegramId) return alert("Telegram ID wajib diisi");
+
+  const storesObj = {};
+  storesEl().value.split(",").forEach(s => {
+    s = s.trim();
+    if (s) storesObj[s] = true;
   });
+
+  usersRef.child(telegramId).set({
+    username: usernameEl().value.trim(),
+    status: statusEl().value,
+    activeUntil: activeUntilEl().value,
+    stores: storesObj
+  });
+
+  resetForm();
 }
 
-/* LOAD */
-ref.on("value", s=>{
-  USERS = s.val() || {};
-  autoExpire();
-  renderTable();
-});
-
-/* RENDER */
-function renderTable() {
-  const q = document.getElementById("search").value.toLowerCase();
-  const filter = document.getElementById("filter").value;
-  const today = new Date().toISOString().slice(0,10);
-  const tbody = document.getElementById("table");
+/* Load Users */
+usersRef.on("value", snap => {
+  const tbody = document.getElementById("userTable");
   tbody.innerHTML = "";
 
-  Object.entries(USERS).forEach(([id,u])=>{
-    const expired = u.activeUntil < today;
-    if (filter==="active" && expired) return;
-    if (filter==="expired" && !expired) return;
-    if (!id.includes(q) && !u.username.toLowerCase().includes(q)) return;
+  snap.forEach(child => {
+    const id = child.key;
+    const u = child.val();
+    const stores = u.stores ? Object.keys(u.stores).join(", ") : "";
 
     tbody.innerHTML += `
       <tr>
         <td>${id}</td>
         <td>${u.username}</td>
-        <td class="${expired?'badge-inactive':'badge-active'}">
-          ${expired?'inactive':'active'}
-        </td>
+        <td>${u.status}</td>
         <td>${u.activeUntil}</td>
-        <td>${u.stores ? Object.keys(u.stores).join(", ") : ""}</td>
+        <td>${stores}</td>
         <td>
-          <button class="edit" onclick="editUser('${id}')">Edit</button>
-          <button class="delete" onclick="delUser('${id}')">Hapus</button>
+          <button class="action-btn edit" onclick="editUser('${id}')">Edit</button>
+          <button class="action-btn delete" onclick="deleteUser('${id}')">Hapus</button>
         </td>
       </tr>`;
   });
-}
+});
 
-/* CRUD */
-function saveUser(){
-  const id = telegramId.value.trim();
-  if(!id) return alert("Telegram ID wajib");
-
-  const storesObj = {};
-  stores.value.split(",").forEach(s=>{
-    s=s.trim(); if(s) storesObj[s]=true;
+/* Edit */
+function editUser(id) {
+  usersRef.child(id).once("value").then(snap => {
+    const u = snap.val();
+    telegramIdEl().value = id;
+    telegramIdEl().disabled = true;
+    usernameEl().value = u.username;
+    statusEl().value = u.status;
+    activeUntilEl().value = u.activeUntil;
+    storesEl().value = u.stores ? Object.keys(u.stores).join(",") : "";
   });
-
-  ref.child(id).set({
-    username: username.value,
-    status: status.value,
-    activeUntil: activeUntil.value,
-    stores: storesObj
-  });
-  resetForm();
 }
 
-function editUser(id){
-  const u = USERS[id];
-  telegramId.value=id; telegramId.disabled=true;
-  username.value=u.username;
-  status.value=u.status;
-  activeUntil.value=u.activeUntil;
-  stores.value=u.stores?Object.keys(u.stores).join(","):"";
+/* Delete */
+function deleteUser(id) {
+  if (confirm("Hapus user " + id + "?")) {
+    usersRef.child(id).remove();
+  }
 }
 
-function delUser(id){
-  if(confirm("Hapus user "+id+" ?")) ref.child(id).remove();
+/* Helpers */
+function resetForm() {
+  telegramIdEl().value = "";
+  telegramIdEl().disabled = false;
+  usernameEl().value = "";
+  activeUntilEl().value = "";
+  storesEl().value = "";
+  statusEl().value = "active";
 }
 
-function resetForm(){
-  telegramId.value=""; telegramId.disabled=false;
-  username.value=""; stores.value="";
-  activeUntil.value=""; status.value="active";
-}
+const telegramIdEl = () => document.getElementById("telegramId");
+const usernameEl = () => document.getElementById("username");
+const statusEl = () => document.getElementById("status");
+const activeUntilEl = () => document.getElementById("activeUntil");
+const storesEl = () => document.getElementById("stores");
 </script>
 
 </body>
