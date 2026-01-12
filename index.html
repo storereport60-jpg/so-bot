@@ -2,183 +2,201 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Admin Panel - User Manager</title>
+<title>Admin Telegram User</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <style>
-body{font-family:Arial;background:#eef2f6;margin:0}
-.card{background:#fff;border-radius:8px;padding:20px;box-shadow:0 4px 12px rgba(0,0,0,.1)}
-.container{max-width:1200px;margin:auto}
-table{width:100%;border-collapse:collapse}
-th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left;font-size:14px}
-th{background:#f5f5f5}
-input,button{padding:8px;border-radius:6px;border:1px solid #ccc}
-button{cursor:pointer;border:none;color:#fff;font-weight:600}
-.primary{background:#1e88e5}
-.success{background:#43a047}
-.warning{background:#fb8c00}
-.danger{background:#e53935}
-.hidden{display:none}
-.flex{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.badge{background:#e8f1ff;color:#1e88e5;padding:6px 12px;border-radius:20px;font-size:13px;font-weight:600}
-.welcome{
-  background:#f1f8ff;
-  border-left:5px solid #1e88e5;
-  padding:12px 15px;
-  border-radius:6px;
-  margin:15px 0;
-  font-size:14px;
+body {
+  font-family: Arial, sans-serif;
+  background: #f2f2f2;
+  padding: 20px;
 }
+.container {
+  max-width: 1000px;
+  margin: auto;
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+}
+input, textarea, select, button {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 10px;
+}
+button {
+  background: #007bff;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+button:hover { background: #0056b3; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+th, td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: center;
+}
+th { background: #f0f0f0; }
+.action-btn {
+  padding: 5px 10px;
+  margin: 2px;
+}
+.edit { background: #28a745; }
+.delete { background: #dc3545; }
+.edit:hover { background: #1e7e34; }
+.delete:hover { background: #bd2130; }
 </style>
 </head>
 
 <body>
 
-<!-- LOGIN ADMIN -->
-<div id="loginWrap" style="min-height:100vh;display:flex;align-items:center;justify-content:center">
-  <div class="card" style="max-width:380px;width:100%">
-    <h2 style="text-align:center">🔐 Admin Login</h2>
-    <input id="pin" type="password" maxlength="6"
-      placeholder="Masukkan PIN Admin (6 digit)"
-      oninput="this.value=this.value.replace(/[^0-9]/g,'')"
-      style="width:100%;margin-bottom:12px">
-    <button class="primary" style="width:100%" onclick="loginAdmin()">LOGIN</button>
-  </div>
-</div>
+<div class="container">
+<h2>Admin User Telegram</h2>
 
-<!-- PANEL ADMIN -->
-<div id="panel" class="container hidden">
-  <div class="card" style="margin:30px">
+<label>Telegram ID</label>
+<input type="text" id="telegramId">
 
-    <h2>Administrator Area</h2>
+<label>Username</label>
+<input type="text" id="username">
 
-    <div class="welcome">
-      👋 <strong>Selamat datang Pak Imron</strong><br>
-      Semoga hari Anda menyenangkan dan seluruh pekerjaan berjalan lancar.
-    </div>
+<label>Status</label>
+<select id="status">
+  <option value="active">active</option>
+  <option value="inactive">inactive</option>
+</select>
 
-    <h3>User Management</h3>
+<label>Active Until</label>
+<input type="date" id="activeUntil">
 
-    <div class="flex">
-      <input id="u" placeholder="USERNAME" oninput="this.value=this.value.toUpperCase()">
-      <input id="s" placeholder="STORE ID" oninput="this.value=this.value.toUpperCase()">
-      <input id="days" type="number" min="1" placeholder="Masa aktif (hari)">
-      <button class="success" onclick="addUser()">Tambah</button>
-    </div>
+<label>Stores (pisahkan dengan koma)</label>
+<textarea id="stores" rows="3"></textarea>
 
-    <div class="flex" style="margin-top:20px">
-      <input id="search" placeholder="🔎 Cari username / store ID" oninput="renderTable()">
-      <span class="badge">👥 Total User: <span id="total">0</span></span>
-    </div>
+<button onclick="saveUser()">💾 Simpan User</button>
+<button onclick="resetForm()" style="background:#6c757d">🔄 Reset</button>
 
-    <table style="margin-top:10px">
-      <thead>
-        <tr>
-          <th>Username</th>
-          <th>Store</th>
-          <th>Expired</th>
-          <th>Aksi</th>
-        </tr>
-      </thead>
-      <tbody id="list"></tbody>
-    </table>
+<hr>
 
-    <button class="danger" style="margin-top:15px" onclick="logout()">Logout</button>
-  </div>
+<h3>Daftar User</h3>
+<table>
+<thead>
+<tr>
+  <th>Telegram ID</th>
+  <th>Username</th>
+  <th>Status</th>
+  <th>Active Until</th>
+  <th>Stores</th>
+  <th>Aksi</th>
+</tr>
+</thead>
+<tbody id="userTable"></tbody>
+</table>
+
 </div>
 
 <script>
-firebase.initializeApp({
+/* Firebase Config */
+const firebaseConfig = {
   apiKey: "AIzaSyChi112l4NC9S0KGF8FUkkLh-CueRtIaDo",
   authDomain: "telegram-laporan-bot.firebaseapp.com",
   databaseURL: "https://telegram-laporan-bot-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "telegram-laporan-bot"
-});
+  projectId: "telegram-laporan-bot",
+  storageBucket: "telegram-laporan-bot.firebasestorage.app",
+  messagingSenderId: "241106458746",
+  appId: "1:241106458746:web:7046c964d892eeccb303c3"
+};
+
+firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const ADMIN_PIN = "500000";
-let USERS = {};
+const usersRef = db.ref("users");
 
-function loginAdmin(){
-  const pin=document.getElementById("pin").value;
-  if(pin.length!==6) return alert("PIN harus 6 digit");
-  if(pin!==ADMIN_PIN) return alert("PIN salah");
+/* Save / Update */
+function saveUser() {
+  const telegramId = telegramIdEl().value.trim();
+  if (!telegramId) return alert("Telegram ID wajib diisi");
 
-  document.getElementById("loginWrap").style.display="none";
-  const panel=document.getElementById("panel");
-  panel.classList.remove("hidden");
-  panel.style.display="block";
-  loadUsers();
+  const storesObj = {};
+  storesEl().value.split(",").forEach(s => {
+    s = s.trim();
+    if (s) storesObj[s] = true;
+  });
+
+  usersRef.child(telegramId).set({
+    username: usernameEl().value.trim(),
+    status: statusEl().value,
+    activeUntil: activeUntilEl().value,
+    stores: storesObj
+  });
+
+  resetForm();
 }
 
-function loadUsers(){
-  db.ref("userList").on("value",snap=>{
-    USERS=snap.val()||{};
-    document.getElementById("total").innerText=Object.keys(USERS).length;
-    renderTable();
+/* Load Users */
+usersRef.on("value", snap => {
+  const tbody = document.getElementById("userTable");
+  tbody.innerHTML = "";
+
+  snap.forEach(child => {
+    const id = child.key;
+    const u = child.val();
+    const stores = u.stores ? Object.keys(u.stores).join(", ") : "";
+
+    tbody.innerHTML += `
+      <tr>
+        <td>${id}</td>
+        <td>${u.username}</td>
+        <td>${u.status}</td>
+        <td>${u.activeUntil}</td>
+        <td>${stores}</td>
+        <td>
+          <button class="action-btn edit" onclick="editUser('${id}')">Edit</button>
+          <button class="action-btn delete" onclick="deleteUser('${id}')">Hapus</button>
+        </td>
+      </tr>`;
+  });
+});
+
+/* Edit */
+function editUser(id) {
+  usersRef.child(id).once("value").then(snap => {
+    const u = snap.val();
+    telegramIdEl().value = id;
+    telegramIdEl().disabled = true;
+    usernameEl().value = u.username;
+    statusEl().value = u.status;
+    activeUntilEl().value = u.activeUntil;
+    storesEl().value = u.stores ? Object.keys(u.stores).join(",") : "";
   });
 }
 
-function renderTable(){
-  const q=document.getElementById("search").value.toLowerCase();
-  const tbody=document.getElementById("list");
-  tbody.innerHTML="";
-  Object.keys(USERS).forEach(id=>{
-    const u=USERS[id];
-    if(q && !u.username.toLowerCase().includes(q) && !u.storeId.toLowerCase().includes(q)) return;
-    tbody.innerHTML+=`
-    <tr>
-      <td>${u.username}</td>
-      <td>${u.storeId}</td>
-      <td>${u.expired}</td>
-      <td>
-        <button class="warning" onclick="editUser('${id}')">Edit</button>
-        <button class="danger" onclick="delUser('${id}')">Hapus</button>
-      </td>
-    </tr>`;
-  });
-}
-
-function addUser(){
-  const u=document.getElementById("u").value;
-  const s=document.getElementById("s").value;
-  const d=parseInt(document.getElementById("days").value);
-  if(!u||!s||!d) return alert("Lengkapi data");
-
-  const exp=new Date();
-  exp.setDate(exp.getDate()+d);
-  db.ref("userList").push({
-    username:u,
-    storeId:s,
-    expired:exp.toISOString().split("T")[0]
-  });
-
-  document.getElementById("u").value="";
-  document.getElementById("s").value="";
-  document.getElementById("days").value="";
-}
-
-function editUser(id){
-  const cur=USERS[id];
-  const u=prompt("Username:",cur.username);
-  const s=prompt("Store ID:",cur.storeId);
-  const e=prompt("Expired (YYYY-MM-DD):",cur.expired);
-  if(u&&s&&e){
-    db.ref("userList/"+id).update({
-      username:u.toUpperCase(),
-      storeId:s.toUpperCase(),
-      expired:e
-    });
+/* Delete */
+function deleteUser(id) {
+  if (confirm("Hapus user " + id + "?")) {
+    usersRef.child(id).remove();
   }
 }
 
-function delUser(id){
-  if(confirm("Hapus user ini?")) db.ref("userList/"+id).remove();
+/* Helpers */
+function resetForm() {
+  telegramIdEl().value = "";
+  telegramIdEl().disabled = false;
+  usernameEl().value = "";
+  activeUntilEl().value = "";
+  storesEl().value = "";
+  statusEl().value = "active";
 }
 
-function logout(){location.reload()}
+const telegramIdEl = () => document.getElementById("telegramId");
+const usernameEl = () => document.getElementById("username");
+const statusEl = () => document.getElementById("status");
+const activeUntilEl = () => document.getElementById("activeUntil");
+const storesEl = () => document.getElementById("stores");
 </script>
 
 </body>
