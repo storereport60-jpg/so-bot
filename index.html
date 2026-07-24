@@ -94,19 +94,50 @@
       measurementId: "G-0FPQWH0QZ7"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const auth = getAuth(app);
-    const urlParams = new URLSearchParams(window.location.search);
-    const storeCode = urlParams.get('storeCode') || "KODE";
-    const docId = urlParams.get('docId') || "IKT_DEFAULT";
-    let currentData = {}, isEditing = false, myChart = null;
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
 
-    document.getElementById('display-code').innerText = storeCode;
-    document.getElementById('display-periode').innerText = (urlParams.get('periode') || "");
+// ================================
+// KONFIGURASI DEFAULT
+// ================================
 
-    // Set fallback teks dari URL jika memuat API sedikit lambat
-    document.getElementById('display-name').innerText = urlParams.get('storeName') || "DASHBOARD";
+const storeCode = "L257";
+
+const monthNames = [
+  "JANUARI",
+  "FEBRUARI",
+  "MARET",
+  "APRIL",
+  "MEI",
+  "JUNI",
+  "JULI",
+  "AGUSTUS",
+  "SEPTEMBER",
+  "OKTOBER",
+  "NOVEMBER",
+  "DESEMBER",
+];
+
+const now = new Date();
+
+const periode =
+  `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+
+const docId =
+  `IKT_${storeCode}_${monthNames[now.getMonth()]}_${now.getFullYear()}`;
+
+let currentData = {},
+    isEditing = false,
+    myChart = null;
+
+document.getElementById("display-code").innerText = storeCode;
+
+document.getElementById("display-periode").innerText =
+  periode;
+
+document.getElementById("display-name").innerText =
+  "MEMUAT...";
 
     // =========================================================================
     // UPDATE: MENGAMBIL NAMA TOKO TERBARU LANGSUNG DARI API SERVER (BYPASS CACHE)
