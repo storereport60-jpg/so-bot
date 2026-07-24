@@ -1,203 +1,317 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8">
-<title>Admin Telegram User</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
-<style>
-body {
-  font-family: Arial, sans-serif;
-  background: #f2f2f2;
-  padding: 20px;
-}
-.container {
-  max-width: 1000px;
-  margin: auto;
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-}
-input, textarea, select, button {
-  width: 100%;
-  padding: 8px;
-  margin-bottom: 10px;
-}
-button {
-  background: #007bff;
-  color: white;
-  border: none;
-  cursor: pointer;
-}
-button:hover { background: #0056b3; }
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
-}
-th, td {
-  border: 1px solid #ddd;
-  padding: 8px;
-  text-align: center;
-}
-th { background: #f0f0f0; }
-.action-btn {
-  padding: 5px 10px;
-  margin: 2px;
-}
-.edit { background: #28a745; }
-.delete { background: #dc3545; }
-.edit:hover { background: #1e7e34; }
-.delete:hover { background: #bd2130; }
-</style>
+    <meta charset="UTF-8">
+    <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IKT Dashboard Modern</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
+        .glass-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+        .bg-actual { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); }
+        .mode-btn { background: #f1f5f9; color: #475569; padding: 0.5rem 0.75rem; border-radius: 0.75rem; font-weight: 700; font-size: 0.7rem; cursor: pointer; border: 1px solid #e2e8f0; transition: all 0.2s; }
+        .mode-btn.active { background: #2563eb; color: white; border-color: #2563eb; }
+    </style>
 </head>
+<body class="pb-12 text-slate-800">
+<header class="bg-white border-b border-slate-200 sticky top-0 z-30 p-4 shadow-sm">
+    <div class="max-w-[1440px] mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-600 w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-lg shrink-0"><i class="fas fa-chart-line text-xl"></i></div>
+            <div>
+                <h1 class="text-lg md:text-2xl font-black italic uppercase tracking-tighter text-slate-900 leading-tight"><span id="display-code">KODE</span> - <span id="display-name">MEMUAT...</span></h1>
+                <p class="text-blue-600 font-bold text-[10px] md:text-sm tracking-widest uppercase italic" id="display-periode">PERIODE</p>
+            </div>
+        </div>
+        <div class="flex flex-col gap-2 w-full md:w-auto">
+            <div class="flex items-center gap-2 w-full md:w-auto">
+                <div class="flex bg-slate-100 p-1 rounded-xl border shrink-0"><button onclick="setMode('mobile')" id="m-mobile" class="mode-btn active">📱 HP</button><button onclick="setMode('desktop')" id="m-desktop" class="mode-btn">🖥️ PC</button></div>
+                <select id="history-selector" onchange="loadHistory(this.value)" class="bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-[10px] font-bold outline-none grow md:grow-0"><option value="">⏳ PILIH HISTORY</option></select>
+            </div>
+            <div class="flex items-center gap-2 w-full md:w-auto">
+                <button onclick="triggerSync()" class="bg-blue-600 text-white px-3 py-2.5 rounded-xl text-[10px] font-bold shadow-lg flex items-center gap-2 grow md:grow-0 justify-center"><i class="fas fa-sync-alt"></i> Sync Actual</button>
+                <button onclick="captureToGallery()" class="bg-emerald-600 text-white px-3 py-2.5 rounded-xl text-[10px] font-bold shadow-lg flex items-center gap-2 grow md:grow-0 justify-center"><i class="fas fa-camera"></i> Galeri</button>
+                <button onclick="toggleEditMode()" id="edit-btn" class="bg-slate-900 text-white px-4 py-2.5 rounded-xl text-[10px] font-bold shadow-xl flex items-center gap-2 grow md:grow-0 justify-center"><i class="fas fa-edit" id="edit-icon"></i> <span id="btn-text">Edit Data</span></button>
+            </div>
+        </div>
+    </div>
+</header>
 
-<body>
+<main class="max-w-[1440px] mx-auto px-4 md:px-8 mt-6">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <div class="glass-card p-4"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Gap Net Sales</p><h3 id="gap-ns" class="text-xl md:text-3xl font-extrabold text-slate-300">Rp 0</h3></div>
+        <div class="glass-card p-4"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Gap GM Rupiah</p><h3 id="gap-gm" class="text-xl md:text-3xl font-extrabold text-slate-300">Rp 0</h3></div>
+        <div class="glass-card p-4"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Gap GM %</p><h3 id="gap-pct" class="text-xl md:text-3xl font-extrabold text-slate-300">0,00%</h3></div>
+        <div class="bg-slate-900 p-4 rounded-2xl text-white text-right relative overflow-hidden">
+            <p class="text-[9px] font-bold opacity-60 uppercase relative z-10" id="label-proyeksi">TARGET SPD</p>
+            <h3 id="proj-ns" class="text-xl md:text-3xl font-extrabold text-yellow-400 relative z-10">Rp 0</h3>
+        </div>
+    </div>
 
-<div class="container">
-<h2>Admin User Telegram</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="glass-card p-4 border-l-4 border-blue-500"><p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Time Factor %</p><h3 id="time-factor" class="text-xl md:text-2xl font-black text-blue-600">0%</h3></div>
+        <div class="glass-card p-4 border-l-4 border-emerald-500"><p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Est. NS di Akhir Bulan</p><h3 id="estimasi-ns" class="text-xl md:text-2xl font-black text-emerald-600">Rp 0</h3></div>
+        <div class="glass-card p-4 border-l-4 border-orange-500"><p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Est. Achievement</p><h3 id="estimasi-pct" class="text-xl md:text-2xl font-black text-orange-600">0%</h3></div>
+        <div class="glass-card p-4 flex items-center justify-between"><div><p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Status</p><h3 id="track-status" class="text-xs font-black uppercase">...</h3></div><div id="track-icon"></div></div>
+    </div>
 
-<label>Telegram ID</label>
-<input type="text" id="telegramId">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+        <div class="lg:col-span-2 glass-card p-4 md:p-8 min-h-[350px] md:h-[550px] relative"><canvas id="perfChart"></canvas></div>
+        <div class="bg-actual rounded-[2rem] p-8 text-white flex flex-col justify-between shadow-2xl">
+            <div>
+                <p class="text-xs font-bold uppercase opacity-80 mb-2">Pencapaian Net Sales</p>
+                <h2 id="act-ns-big" class="text-3xl md:text-5xl font-extrabold mb-8 tracking-tighter text-white">Rp 0</h2>
+                <div class="space-y-6">
+                    <div><div class="flex justify-between items-end mb-2 text-white"><span class="text-[9px] font-bold uppercase">Prog. Net Sales</span><span id="prog-pct" class="text-xl font-black">0%</span></div><div class="w-full bg-black/20 h-2 rounded-full overflow-hidden shadow-inner"><div id="prog-bar" class="bg-white h-full transition-all duration-1000" style="width: 0%"></div></div></div>
+                    <div><div class="flex justify-between items-end mb-2 text-white"><span class="text-[9px] font-bold uppercase">Prog. GM Rp</span><span id="prog-gm-rp-pct" class="text-xl font-black">0%</span></div><div class="w-full bg-black/20 h-2 rounded-full overflow-hidden shadow-inner"><div id="prog-gm-rp-bar" class="bg-white h-full transition-all duration-1000" style="width: 0%"></div></div></div>
+                    <div><div class="flex justify-between items-end mb-2 text-white"><span class="text-[9px] font-bold uppercase">Prog. GM Persen</span><span id="prog-gm-pct-pct" class="text-xl font-black">0%</span></div><div class="w-full bg-black/20 h-2 rounded-full overflow-hidden shadow-inner"><div id="prog-gm-pct-bar" class="bg-white h-full transition-all duration-1000" style="width: 0%"></div></div></div>
+                </div>
+            </div>
+            <div class="pt-8 border-t border-white/20 flex justify-between items-center text-white"><p class="text-sm font-bold uppercase">Actual GM%</p><p id="act-gm-big" class="text-3xl md:text-5xl font-black text-white">0,00%</p></div>
+        </div>
+    </div>
+    <div id="data-sections" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8"></div>
+</main>
 
-<label>Username</label>
-<input type="text" id="username">
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    // MENGIMPOR getDoc UNTUK MENGAMBIL API URL
+    import { getFirestore, doc, onSnapshot, updateDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-<label>Status</label>
-<select id="status">
-  <option value="active">active</option>
-  <option value="inactive">inactive</option>
-</select>
+    // Konfigurasi Firebase (cselapp-pro)
+    const firebaseConfig = {
+      apiKey: "AIzaSyBT33AovQRvZfLhSXMbi70L_FfagBRYTfY",
+      authDomain: "cselapp-pro.firebaseapp.com",
+      projectId: "cselapp-pro",
+      storageBucket: "cselapp-pro.firebasestorage.app",
+      messagingSenderId: "901942970412",
+      appId: "1:901942970412:web:7225863251c8991b856989",
+      measurementId: "G-0FPQWH0QZ7"
+    };
 
-<label>Active Until</label>
-<input type="date" id="activeUntil">
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+    const urlParams = new URLSearchParams(window.location.search);
+    const storeCode = urlParams.get('storeCode') || "KODE";
+    const docId = urlParams.get('docId') || "IKT_DEFAULT";
+    let currentData = {}, isEditing = false, myChart = null;
 
-<label>Stores (pisahkan dengan koma)</label>
-<textarea id="stores" rows="3"></textarea>
+    document.getElementById('display-code').innerText = storeCode;
+    document.getElementById('display-periode').innerText = (urlParams.get('periode') || "");
 
-<button onclick="saveUser()">💾 Simpan User</button>
-<button onclick="resetForm()" style="background:#6c757d">🔄 Reset</button>
+    // Set fallback teks dari URL jika memuat API sedikit lambat
+    document.getElementById('display-name').innerText = urlParams.get('storeName') || "DASHBOARD";
 
-<hr>
+    // =========================================================================
+    // UPDATE: MENGAMBIL NAMA TOKO TERBARU LANGSUNG DARI API SERVER (BYPASS CACHE)
+    // =========================================================================
+    getDoc(doc(db, "app_based", "api_settings")).then((snap) => {
+        if (snap.exists() && snap.data()["1_store_json"]) {
+            let apiUrl = snap.data()["1_store_json"];
+            if (apiUrl.includes("?")) apiUrl = apiUrl.split('?')[0]; // Bersihkan embel-embel
 
-<h3>Daftar User</h3>
-<table>
-<thead>
-<tr>
-  <th>Telegram ID</th>
-  <th>Username</th>
-  <th>Status</th>
-  <th>Active Until</th>
-  <th>Stores</th>
-  <th>Aksi</th>
-</tr>
-</thead>
-<tbody id="userTable"></tbody>
-</table>
+            fetch(apiUrl + "?storeId=" + storeCode)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.header2) {
+                        document.getElementById('display-name').innerText = data.header2;
+                    }
+                }).catch(() => { /* Jika gagal biarkan fallback URL tetap muncul */ });
+        }
+    });
 
-</div>
+    window.setMode = (m) => {
+        const vp = document.getElementById('viewport');
+        if (m === 'desktop') { vp.setAttribute('content', 'width=1280, initial-scale=0.3, user-scalable=yes'); document.body.style.minWidth = "1280px"; document.getElementById('m-desktop').classList.add('active'); document.getElementById('m-mobile').classList.remove('active'); }
+        else { vp.setAttribute('content', 'width=device-width, initial-scale=1.0, user-scalable=no'); document.body.style.minWidth = "auto"; document.getElementById('m-mobile').classList.add('active'); document.getElementById('m-desktop').classList.remove('active'); }
+    };
 
-<script>
-/* Firebase Config */
-const firebaseConfig = {
-  apiKey: "AIzaSyChi112l4NC9S0KGF8FUkkLh-CueRtIaDo",
-  authDomain: "telegram-laporan-bot.firebaseapp.com",
-  databaseURL: "https://telegram-laporan-bot-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "telegram-laporan-bot",
-  storageBucket: "telegram-laporan-bot.firebasestorage.app",
-  messagingSenderId: "241106458746",
-  appId: "1:241106458746:web:7046c964d892eeccb303c3"
-};
+    window.captureToGallery = () => {
+        document.querySelector('header').style.display = 'none';
+        html2canvas(document.body, { scale: 2 }).then(canvas => {
+            if (window.AndroidBridge) window.AndroidBridge.saveImageToGallery(canvas.toDataURL("image/png"));
+            document.querySelector('header').style.display = 'flex';
+        });
+    };
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-const usersRef = db.ref("users");
+    window.triggerSync = () => {
+        const m = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"];
+        const val = document.getElementById('history-selector').value || docId;
+        const p = val.split('_');
+        if (window.AndroidBridge) window.AndroidBridge.requestSync(m.indexOf(p[p.length-2]), parseInt(p[p.length-1]));
+    };
 
-/* Save / Update */
-function saveUser() {
-  const telegramId = telegramIdEl().value.trim();
-  if (!telegramId) return alert("Telegram ID wajib diisi");
+    window.formatInput = (el, k, sectionId) => {
+        if (k === 'GM%') {
+            el.value = el.value.replace(/[^0-9,]/g, "").replace(/(,.*),/g, "$1");
+        } else {
+            let v = el.value.replace(/\D/g, "");
+            el.value = v ? Number(v).toLocaleString("id-ID") : "";
+        }
 
-  const storesObj = {};
-  storesEl().value.split(",").forEach(s => {
-    s = s.trim();
-    if (s) storesObj[s] = true;
-  });
+        if (isEditing) {
+            const nsVal = parseIDR(document.getElementById(`in-${sectionId}-NET_SALES`)?.value || "0");
+            if (k === 'NET_SALES') {
+                const now = new Date();
+                const dInM = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+                const spdResult = Math.round(nsVal / dInM);
+                const spdDisplay = document.getElementById(`val-${sectionId}-SPD`);
+                if (spdDisplay) spdDisplay.innerText = spdResult.toLocaleString('id-ID');
+            }
+            if (k === 'NET_SALES' || k === 'GM%') {
+                const gmPctVal = parsePct(document.getElementById(`in-${sectionId}-GM%`)?.value || "0");
+                const gmRpDisplay = document.getElementById(`val-${sectionId}-GM_RP`);
+                if (gmRpDisplay) gmRpDisplay.innerText = Math.round(nsVal * (gmPctVal / 100)).toLocaleString("id-ID");
+            }
+        }
+    };
 
-  usersRef.child(telegramId).set({
-    username: usernameEl().value.trim(),
-    status: statusEl().value,
-    activeUntil: activeUntilEl().value,
-    stores: storesObj
-  });
+    window.loadHistory = (v) => { if (!v) return; const p = v.split('_'); const m = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"]; if (window.AndroidBridge) window.AndroidBridge.requestSync(m.indexOf(p[p.length-2]), parseInt(p[p.length-1])); };
 
-  resetForm();
-}
+    const parseIDR = (s) => parseFloat(String(s).replace(/\D/g, '')) || 0;
+    const parsePct = (s) => parseFloat(String(s).replace(',', '.')) || 0;
 
-/* Load Users */
-usersRef.on("value", snap => {
-  const tbody = document.getElementById("userTable");
-  tbody.innerHTML = "";
+    signInAnonymously(getAuth(app)).then(() => {
+        const sel = document.getElementById('history-selector');
+        const m = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"];
+        const now = new Date();
+        for (let i = 0; i <= now.getMonth(); i++) {
+            const opt = document.createElement('option');
+            opt.value = `IKT_${storeCode}_${m[i]}_${now.getFullYear()}`;
+            opt.text = `${m[i]} ${now.getFullYear()}`;
+            if (opt.value === docId) opt.selected = true;
+            sel.add(opt);
+        }
+        onSnapshot(doc(db, "IKT_DASHBOARD", docId), (snap) => {
+            if (snap.exists()) { currentData = snap.data(); renderDashboard(); }
+            else initializeEmpty();
+        });
+    });
 
-  snap.forEach(child => {
-    const id = child.key;
-    const u = child.val();
-    const stores = u.stores ? Object.keys(u.stores).join(", ") : "";
+    async function initializeEmpty() {
+        const e = { APC: "0", "GM%": "0", GM_RP: "0", NET_SALES: "0", SPD: "0", STD: "0" };
+        await setDoc(doc(db, "IKT_DASHBOARD", docId), { T_IKT: {...e, NET_PROFIT:"0"}, T_OPR: e, T_LAST_MONTH: e, T_LAST_YEAR: e, A_IKT: currentData.A_IKT || e }, { merge: true });
+    }
 
-    tbody.innerHTML += `
-      <tr>
-        <td>${id}</td>
-        <td>${u.username}</td>
-        <td>${u.status}</td>
-        <td>${u.activeUntil}</td>
-        <td>${stores}</td>
-        <td>
-          <button class="action-btn edit" onclick="editUser('${id}')">Edit</button>
-          <button class="action-btn delete" onclick="deleteUser('${id}')">Hapus</button>
-        </td>
-      </tr>`;
-  });
-});
+    window.toggleEditMode = async () => {
+        if (isEditing) {
+            document.getElementById('btn-text').innerText = "...";
+            try {
+                const now = new Date();
+                const dInM = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+                ["T_OPR", "T_IKT", "T_LAST_YEAR", "T_LAST_MONTH"].forEach(sec => {
+                    if (!currentData[sec]) currentData[sec] = {};
+                    ["NET_SALES", "STD", "APC", "GM%", "NET_PROFIT"].forEach(f => {
+                        const el = document.getElementById(`in-${sec}-${f}`);
+                        if (el) currentData[sec][f] = el.value || "0";
+                    });
+                    const ns = parseIDR(currentData[sec].NET_SALES), gmp = parsePct(currentData[sec]['GM%']);
+                    currentData[sec].SPD = Math.round(ns / dInM).toLocaleString('id-ID');
+                    currentData[sec].GM_RP = Math.round(ns * (gmp / 100)).toLocaleString('id-ID');
+                });
+                await updateDoc(doc(db, "IKT_DASHBOARD", docId), currentData);
+                isEditing = false;
+            } catch (e) { alert("Gagal"); }
+        } else isEditing = true;
+        renderDashboard();
+    };
 
-/* Edit */
-function editUser(id) {
-  usersRef.child(id).once("value").then(snap => {
-    const u = snap.val();
-    telegramIdEl().value = id;
-    telegramIdEl().disabled = true;
-    usernameEl().value = u.username;
-    statusEl().value = u.status;
-    activeUntilEl().value = u.activeUntil;
-    storesEl().value = u.stores ? Object.keys(u.stores).join(",") : "";
-  });
-}
+    function renderDashboard() {
+        const sections = [{ id: 'T_OPR', title: 'OPERATIONAL (OPR)', color: 'bg-blue-600' }, { id: 'T_IKT', title: 'TARGET (IKT)', color: 'bg-emerald-600' }, { id: 'A_IKT', title: 'ACTUAL IKT', color: 'bg-orange-500' }, { id: 'T_LAST_YEAR', title: 'LAST YEAR', color: 'bg-slate-700' }, { id: 'T_LAST_MONTH', title: 'LAST MONTH', color: 'bg-indigo-600' }];
+        const order = ["NET_SALES", "SPD", "STD", "APC", "GM%", "GM_RP", "NET_PROFIT"];
+        document.getElementById('data-sections').innerHTML = sections.map(s => {
+            const data = currentData[s.id] || {};
+            const rows = order.map(k => {
+                if (k === 'NET_PROFIT' && s.id !== 'T_IKT') return '';
+                const val = data[k] || '0';
+                const isAuto = k === 'SPD' || k === 'GM_RP';
+                return `
+                <div class="flex justify-between py-3 border-b border-slate-50 px-4">
+                    <span class="text-[16px] font-bold text-slate-400 uppercase">${k.replace('_',' ')}</span>
+                    ${isEditing && s.id !== 'A_IKT' && !isAuto ?
+                        `<input id="in-${s.id}-${k}" value="${val === '0' ? '' : val}" oninput="formatInput(this, '${k}', '${s.id}')" inputmode="decimal" class="w-28 text-right bg-blue-50 border-b-2 border-blue-500 font-extrabold px-1 py-0.5 text-[12px] outline-none">` :
+                        `<span id="val-${s.id}-${k}" class="text-[16px] font-extrabold ${isAuto?'text-blue-600':'text-slate-700'}">${val}</span>`}
+                </div>`;
+            }).join('');
+            return `<div class="glass-card shadow-lg overflow-hidden transition-transform hover:-translate-y-1"><div class="${s.color} p-4 text-white"><h5 class="text-[12px] font-black uppercase tracking-widest">${s.title}</h5></div><div class="py-2 bg-white">${rows}</div></div>`;
+        }).join('');
+        updateStats(); updateChart();
+    }
 
-/* Delete */
-function deleteUser(id) {
-  if (confirm("Hapus user " + id + "?")) {
-    usersRef.child(id).remove();
-  }
-}
+    function updateStats() {
+        const aNs = parseIDR(currentData.A_IKT?.NET_SALES), tNs = parseIDR(currentData.T_IKT?.NET_SALES);
+        const aGmRp = parseIDR(currentData.A_IKT?.GM_RP), tGmRp = parseIDR(currentData.T_IKT?.GM_RP);
+        const aGmp = parsePct(currentData.A_IKT?.['GM%']), tGmp = parsePct(currentData.T_IKT?.['GM%']);
 
-/* Helpers */
-function resetForm() {
-  telegramIdEl().value = "";
-  telegramIdEl().disabled = false;
-  usernameEl().value = "";
-  activeUntilEl().value = "";
-  storesEl().value = "";
-  statusEl().value = "active";
-}
+        const setG = (id, v, isC = true) => { const el = document.getElementById(id); if(!el) return; el.innerText = (isC ? 'Rp ' : '') + v.toLocaleString('id-ID') + (isC ? '' : '%'); el.className = `text-xl md:text-3xl font-extrabold ${v >= 0 ? 'text-emerald-600' : 'text-red-600'}`; };
+        setG('gap-ns', aNs - tNs); setG('gap-gm', aGmRp - tGmRp); setG('gap-pct', parseFloat((aGmp - tGmp).toFixed(2)), false);
 
-const telegramIdEl = () => document.getElementById("telegramId");
-const usernameEl = () => document.getElementById("username");
-const statusEl = () => document.getElementById("status");
-const activeUntilEl = () => document.getElementById("activeUntil");
-const storesEl = () => document.getElementById("stores");
+        const now = new Date();
+        const mNames = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"];
+
+        const currentMonthDoc = `IKT_${storeCode}_${mNames[now.getMonth()]}_${now.getFullYear()}`;
+        const isHistory = (docId !== currentMonthDoc);
+
+        // Status tetap dihitung berdasarkan pencapaian bulanan
+        if (isHistory) {
+            document.getElementById('time-factor').innerText = '-';
+            document.getElementById('estimasi-ns').innerText = '-';
+            document.getElementById('estimasi-pct').innerText = '-';
+            document.getElementById('proj-ns').innerText = '-';
+            document.getElementById('label-proyeksi').innerText = 'PROG. SELESAI';
+
+            const isOn = (tNs > 0 ? (aNs / tNs) * 100 : 0) >= 100;
+            const statusEl = document.getElementById('track-status');
+            statusEl.innerText = isOn ? 'On Track' : 'Off Track';
+            statusEl.className = `text-xs font-black uppercase ${isOn ? 'text-emerald-600' : 'text-red-600'}`;
+            document.getElementById('track-icon').innerHTML = isOn ? '<i class="fas fa-check-circle text-emerald-500"></i>' : '<i class="fas fa-times-circle text-red-500"></i>';
+        } else {
+            const dInM = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+            const dRem = Math.max(1, dInM - now.getDate() + 1);
+
+            const tf = (now.getDate() / dInM) * 100; document.getElementById('time-factor').innerText = tf.toFixed(1) + '%';
+            const est = (aNs / now.getDate()) * dInM; document.getElementById('estimasi-ns').innerText = 'Rp ' + Math.round(est).toLocaleString('id-ID');
+            document.getElementById('estimasi-pct').innerText = (tNs > 0 ? (est / tNs) * 100 : 0).toFixed(1) + '%';
+            document.getElementById('proj-ns').innerText = 'Rp ' + ((tNs - aNs) > 0 ? Math.round((tNs - aNs) / dRem) : 0).toLocaleString('id-ID');
+            document.getElementById('label-proyeksi').innerText = 'TARGET SPD dalam ' + dRem + ' Hari';
+
+            const isOn = (tNs > 0 ? (aNs / tNs) * 100 : 0) >= tf;
+            const statusEl = document.getElementById('track-status');
+            statusEl.innerText = isOn ? 'On Track' : 'Off Track';
+            statusEl.className = `text-xs font-black uppercase ${isOn ? 'text-emerald-600' : 'text-red-600'}`;
+            document.getElementById('track-icon').innerHTML = isOn ? '<i class="fas fa-check-circle text-emerald-500"></i>' : '<i class="fas fa-times-circle text-red-500"></i>';
+        }
+
+        document.getElementById('act-ns-big').innerText = 'Rp ' + aNs.toLocaleString('id-ID');
+        document.getElementById('act-gm-big').innerText = String(aGmp).replace('.', ',') + '%';
+
+        const upP = (iP, iB, a, t) => {
+            const p = t > 0 ? Math.round((a/t)*100) : 0;
+            const elP = document.getElementById(iP);
+            const elB = document.getElementById(iB);
+            if(elP) elP.innerText = p + '%';
+            if(elB) elB.style.width = Math.min(p, 100) + '%';
+        };
+        upP('prog-pct', 'prog-bar', aNs, tNs);
+        upP('prog-gm-rp-pct', 'prog-gm-rp-bar', aGmRp, tGmRp);
+        upP('prog-gm-pct-pct', 'prog-gm-pct-bar', aGmp, tGmp);
+
+        document.getElementById('btn-text').innerText = isEditing ? "Simpan" : "Edit Data";
+        document.getElementById('edit-icon').className = isEditing ? "fas fa-save" : "fas fa-edit";
+    }
+
+    function updateChart() {
+        const ctx = document.getElementById('perfChart').getContext('2d');
+        const vals = [parseIDR(currentData.T_LAST_YEAR?.NET_SALES), parseIDR(currentData.T_LAST_MONTH?.NET_SALES), parseIDR(currentData.A_IKT?.NET_SALES), parseIDR(currentData.T_OPR?.NET_SALES), parseIDR(currentData.T_IKT?.NET_SALES)];
+        if (myChart) myChart.destroy();
+        myChart = new Chart(ctx, { type: 'bar', data: { labels: ['LY', 'LM', 'Actual', 'OPR', 'Target'], datasets: [{ data: vals, backgroundColor: ['#cbd5e1', '#94a3b8', '#f97316', '#3b82f6', '#10b981'], borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+    }
 </script>
-
 </body>
 </html>
