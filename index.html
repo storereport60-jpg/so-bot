@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IKT Dashboard Modern</title>
+    <title>IKT Dashboard Modern (Offline / Local Storage)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
@@ -23,17 +23,21 @@
         <div class="flex items-center gap-3">
             <div class="bg-blue-600 w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-lg shrink-0"><i class="fas fa-chart-line text-xl"></i></div>
             <div>
-                <h1 class="text-lg md:text-2xl font-black italic uppercase tracking-tighter text-slate-900 leading-tight"><span id="display-code">KODE</span> - <span id="display-name">MEMUAT...</span></h1>
+                <h1 class="text-lg md:text-2xl font-black italic uppercase tracking-tighter text-slate-900 leading-tight"><span id="display-code">KODE</span> - <span id="display-name">TOKO M204</span></h1>
                 <p class="text-blue-600 font-bold text-[10px] md:text-sm tracking-widest uppercase italic" id="display-periode">PERIODE</p>
             </div>
         </div>
         <div class="flex flex-col gap-2 w-full md:w-auto">
             <div class="flex items-center gap-2 w-full md:w-auto">
-                <div class="flex bg-slate-100 p-1 rounded-xl border shrink-0"><button onclick="setMode('mobile')" id="m-mobile" class="mode-btn active">📱 HP</button><button onclick="setMode('desktop')" id="m-desktop" class="mode-btn">🖥️ PC</button></div>
-                <select id="history-selector" onchange="loadHistory(this.value)" class="bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-[10px] font-bold outline-none grow md:grow-0"><option value="">⏳ PILIH HISTORY</option></select>
+                <div class="flex bg-slate-100 p-1 rounded-xl border shrink-0">
+                    <button onclick="setMode('mobile')" id="m-mobile" class="mode-btn active">📱 HP</button>
+                    <button onclick="setMode('desktop')" id="m-desktop" class="mode-btn">🖥️ PC</button>
+                </div>
+                <select id="history-selector" onchange="changePeriod(this.value)" class="bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-[10px] font-bold outline-none grow md:grow-0">
+                    <option value="">⏳ PILIH HISTORY</option>
+                </select>
             </div>
             <div class="flex items-center gap-2 w-full md:w-auto">
-                <button onclick="triggerSync()" class="bg-blue-600 text-white px-3 py-2.5 rounded-xl text-[10px] font-bold shadow-lg flex items-center gap-2 grow md:grow-0 justify-center"><i class="fas fa-sync-alt"></i> Sync Actual</button>
                 <button onclick="captureToGallery()" class="bg-emerald-600 text-white px-3 py-2.5 rounded-xl text-[10px] font-bold shadow-lg flex items-center gap-2 grow md:grow-0 justify-center"><i class="fas fa-camera"></i> Galeri</button>
                 <button onclick="toggleEditMode()" id="edit-btn" class="bg-slate-900 text-white px-4 py-2.5 rounded-xl text-[10px] font-bold shadow-xl flex items-center gap-2 grow md:grow-0 justify-center"><i class="fas fa-edit" id="edit-icon"></i> <span id="btn-text">Edit Data</span></button>
             </div>
@@ -77,105 +81,87 @@
     <div id="data-sections" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8"></div>
 </main>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    // MENGIMPOR getDoc UNTUK MENGAMBIL API URL
-    import { getFirestore, doc, onSnapshot, updateDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+<script>
+    const storeCode = "M204";
+    const monthNames = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"];
+    const now = new Date();
+    
+    let activeDocId = `IKT_${storeCode}_${monthNames[now.getMonth()]}_${now.getFullYear()}`;
+    let currentData = {}, isEditing = false, myChart = null;
 
-    // Konfigurasi Firebase (cselapp-pro)
-    const firebaseConfig = {
-      apiKey: "AIzaSyBT33AovQRvZfLhSXMbi70L_FfagBRYTfY",
-      authDomain: "cselapp-pro.firebaseapp.com",
-      projectId: "cselapp-pro",
-      storageBucket: "cselapp-pro.firebasestorage.app",
-      messagingSenderId: "901942970412",
-      appId: "1:901942970412:web:7225863251c8991b856989",
-      measurementId: "G-0FPQWH0QZ7"
+    // Struktur Data Default
+    const defaultData = {
+        T_OPR: { NET_SALES: "120.000.000", SPD: "4.000.000", STD: "2.400", APC: "50.000", "GM%": "18,50", GM_RP: "22.200.000" },
+        T_IKT: { NET_SALES: "150.000.000", SPD: "5.000.000", STD: "3.000", APC: "50.000", "GM%": "20,00", GM_RP: "30.000.000", NET_PROFIT: "15.000.000" },
+        A_IKT: { NET_SALES: "95.000.000", SPD: "3.166.667", STD: "1.900", APC: "50.000", "GM%": "19,20", GM_RP: "18.240.000" },
+        T_LAST_YEAR: { NET_SALES: "110.000.000", SPD: "3.666.667", STD: "2.200", APC: "50.000", "GM%": "18,00", GM_RP: "19.800.000" },
+        T_LAST_MONTH: { NET_SALES: "130.000.000", SPD: "4.333.333", STD: "2.600", APC: "50.000", "GM%": "19,00", GM_RP: "24.700.000" }
     };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
-
-// ================================
-// KONFIGURASI DEFAULT
-// ================================
-
-const storeCode = "M204";
-
-const monthNames = [
-  "JANUARI",
-  "FEBRUARI",
-  "MARET",
-  "APRIL",
-  "MEI",
-  "JUNI",
-  "JULI",
-  "AGUSTUS",
-  "SEPTEMBER",
-  "OKTOBER",
-  "NOVEMBER",
-  "DESEMBER",
-];
-
-const now = new Date();
-
-const periode =
-  `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
-
-const docId =
-  `IKT_${storeCode}_${monthNames[now.getMonth()]}_${now.getFullYear()}`;
-
-let currentData = {},
-    isEditing = false,
-    myChart = null;
-
-document.getElementById("display-code").innerText = storeCode;
-
-document.getElementById("display-periode").innerText =
-  periode;
-
-document.getElementById("display-name").innerText =
-  "MEMUAT...";
-
-    // =========================================================================
-    // UPDATE: MENGAMBIL NAMA TOKO TERBARU LANGSUNG DARI API SERVER (BYPASS CACHE)
-    // =========================================================================
-    getDoc(doc(db, "app_based", "api_settings")).then((snap) => {
-        if (snap.exists() && snap.data()["1_store_json"]) {
-            let apiUrl = snap.data()["1_store_json"];
-            if (apiUrl.includes("?")) apiUrl = apiUrl.split('?')[0]; // Bersihkan embel-embel
-
-            fetch(apiUrl + "?storeId=" + storeCode)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.header2) {
-                        document.getElementById('display-name').innerText = data.header2;
-                    }
-                }).catch(() => { /* Jika gagal biarkan fallback URL tetap muncul */ });
-        }
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById("display-code").innerText = storeCode;
+        initHistorySelector();
+        loadData(activeDocId);
     });
+
+    function initHistorySelector() {
+        const sel = document.getElementById('history-selector');
+        sel.innerHTML = '<option value="">⏳ PILIH HISTORY</option>';
+        for (let i = 0; i <= now.getMonth(); i++) {
+            const opt = document.createElement('option');
+            const id = `IKT_${storeCode}_${monthNames[i]}_${now.getFullYear()}`;
+            opt.value = id;
+            opt.text = `${monthNames[i]} ${now.getFullYear()}`;
+            if (id === activeDocId) opt.selected = true;
+            sel.add(opt);
+        }
+    }
+
+    function changePeriod(val) {
+        if (!val) return;
+        activeDocId = val;
+        loadData(activeDocId);
+    }
+
+    function loadData(id) {
+        const p = id.split('_');
+        document.getElementById("display-periode").innerText = `${p[2]} ${p[3]}`;
+        
+        // Ambil dari LocalStorage atau gunakan Default
+        const saved = localStorage.getItem(id);
+        if (saved) {
+            currentData = JSON.parse(saved);
+        } else {
+            currentData = JSON.parse(JSON.stringify(defaultData));
+            localStorage.setItem(id, JSON.stringify(currentData));
+        }
+        renderDashboard();
+    }
 
     window.setMode = (m) => {
         const vp = document.getElementById('viewport');
-        if (m === 'desktop') { vp.setAttribute('content', 'width=1280, initial-scale=0.3, user-scalable=yes'); document.body.style.minWidth = "1280px"; document.getElementById('m-desktop').classList.add('active'); document.getElementById('m-mobile').classList.remove('active'); }
-        else { vp.setAttribute('content', 'width=device-width, initial-scale=1.0, user-scalable=no'); document.body.style.minWidth = "auto"; document.getElementById('m-mobile').classList.add('active'); document.getElementById('m-desktop').classList.remove('active'); }
+        if (m === 'desktop') {
+            vp.setAttribute('content', 'width=1280, initial-scale=0.3, user-scalable=yes');
+            document.body.style.minWidth = "1280px";
+            document.getElementById('m-desktop').classList.add('active');
+            document.getElementById('m-mobile').classList.remove('active');
+        } else {
+            vp.setAttribute('content', 'width=device-width, initial-scale=1.0, user-scalable=no');
+            document.body.style.minWidth = "auto";
+            document.getElementById('m-mobile').classList.add('active');
+            document.getElementById('m-desktop').classList.remove('active');
+        }
     };
 
     window.captureToGallery = () => {
         document.querySelector('header').style.display = 'none';
         html2canvas(document.body, { scale: 2 }).then(canvas => {
-            if (window.AndroidBridge) window.AndroidBridge.saveImageToGallery(canvas.toDataURL("image/png"));
+            const link = document.createElement('a');
+            link.download = `${activeDocId}.png`;
+            link.href = canvas.toDataURL("image/png");
+            link.click();
             document.querySelector('header').style.display = 'flex';
         });
-    };
-
-    window.triggerSync = () => {
-        const m = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"];
-        const val = document.getElementById('history-selector').value || docId;
-        const p = val.split('_');
-        if (window.AndroidBridge) window.AndroidBridge.requestSync(m.indexOf(p[p.length-2]), parseInt(p[p.length-1]));
     };
 
     window.formatInput = (el, k, sectionId) => {
@@ -189,7 +175,6 @@ document.getElementById("display-name").innerText =
         if (isEditing) {
             const nsVal = parseIDR(document.getElementById(`in-${sectionId}-NET_SALES`)?.value || "0");
             if (k === 'NET_SALES') {
-                const now = new Date();
                 const dInM = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
                 const spdResult = Math.round(nsVal / dInM);
                 const spdDisplay = document.getElementById(`val-${sectionId}-SPD`);
@@ -203,59 +188,45 @@ document.getElementById("display-name").innerText =
         }
     };
 
-    window.loadHistory = (v) => { if (!v) return; const p = v.split('_'); const m = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"]; if (window.AndroidBridge) window.AndroidBridge.requestSync(m.indexOf(p[p.length-2]), parseInt(p[p.length-1])); };
-
     const parseIDR = (s) => parseFloat(String(s).replace(/\D/g, '')) || 0;
     const parsePct = (s) => parseFloat(String(s).replace(',', '.')) || 0;
 
-    signInAnonymously(getAuth(app)).then(() => {
-        const sel = document.getElementById('history-selector');
-        const m = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"];
-        const now = new Date();
-        for (let i = 0; i <= now.getMonth(); i++) {
-            const opt = document.createElement('option');
-            opt.value = `IKT_${storeCode}_${m[i]}_${now.getFullYear()}`;
-            opt.text = `${m[i]} ${now.getFullYear()}`;
-            if (opt.value === docId) opt.selected = true;
-            sel.add(opt);
-        }
-        onSnapshot(doc(db, "IKT_DASHBOARD", docId), (snap) => {
-            if (snap.exists()) { currentData = snap.data(); renderDashboard(); }
-            else initializeEmpty();
-        });
-    });
-
-    async function initializeEmpty() {
-        const e = { APC: "0", "GM%": "0", GM_RP: "0", NET_SALES: "0", SPD: "0", STD: "0" };
-        await setDoc(doc(db, "IKT_DASHBOARD", docId), { T_IKT: {...e, NET_PROFIT:"0"}, T_OPR: e, T_LAST_MONTH: e, T_LAST_YEAR: e, A_IKT: currentData.A_IKT || e }, { merge: true });
-    }
-
-    window.toggleEditMode = async () => {
+    window.toggleEditMode = () => {
         if (isEditing) {
             document.getElementById('btn-text').innerText = "...";
-            try {
-                const now = new Date();
-                const dInM = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-                ["T_OPR", "T_IKT", "T_LAST_YEAR", "T_LAST_MONTH"].forEach(sec => {
-                    if (!currentData[sec]) currentData[sec] = {};
-                    ["NET_SALES", "STD", "APC", "GM%", "NET_PROFIT"].forEach(f => {
-                        const el = document.getElementById(`in-${sec}-${f}`);
-                        if (el) currentData[sec][f] = el.value || "0";
-                    });
-                    const ns = parseIDR(currentData[sec].NET_SALES), gmp = parsePct(currentData[sec]['GM%']);
-                    currentData[sec].SPD = Math.round(ns / dInM).toLocaleString('id-ID');
-                    currentData[sec].GM_RP = Math.round(ns * (gmp / 100)).toLocaleString('id-ID');
+            const dInM = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+            
+            // Baca input dari halaman untuk A_IKT dan section lainnya
+            ["T_OPR", "T_IKT", "A_IKT", "T_LAST_YEAR", "T_LAST_MONTH"].forEach(sec => {
+                if (!currentData[sec]) currentData[sec] = {};
+                ["NET_SALES", "STD", "APC", "GM%", "NET_PROFIT"].forEach(f => {
+                    const el = document.getElementById(`in-${sec}-${f}`);
+                    if (el) currentData[sec][f] = el.value || "0";
                 });
-                await updateDoc(doc(db, "IKT_DASHBOARD", docId), currentData);
-                isEditing = false;
-            } catch (e) { alert("Gagal"); }
-        } else isEditing = true;
+                const ns = parseIDR(currentData[sec].NET_SALES), gmp = parsePct(currentData[sec]['GM%']);
+                currentData[sec].SPD = Math.round(ns / dInM).toLocaleString('id-ID');
+                currentData[sec].GM_RP = Math.round(ns * (gmp / 100)).toLocaleString('id-ID');
+            });
+
+            // Simpan ke LocalStorage
+            localStorage.setItem(activeDocId, JSON.stringify(currentData));
+            isEditing = false;
+        } else {
+            isEditing = true;
+        }
         renderDashboard();
     };
 
     function renderDashboard() {
-        const sections = [{ id: 'T_OPR', title: 'OPERATIONAL (OPR)', color: 'bg-blue-600' }, { id: 'T_IKT', title: 'TARGET (IKT)', color: 'bg-emerald-600' }, { id: 'A_IKT', title: 'ACTUAL IKT', color: 'bg-orange-500' }, { id: 'T_LAST_YEAR', title: 'LAST YEAR', color: 'bg-slate-700' }, { id: 'T_LAST_MONTH', title: 'LAST MONTH', color: 'bg-indigo-600' }];
+        const sections = [
+            { id: 'T_OPR', title: 'OPERATIONAL (OPR)', color: 'bg-blue-600' }, 
+            { id: 'T_IKT', title: 'TARGET (IKT)', color: 'bg-emerald-600' }, 
+            { id: 'A_IKT', title: 'ACTUAL IKT', color: 'bg-orange-500' }, 
+            { id: 'T_LAST_YEAR', title: 'LAST YEAR', color: 'bg-slate-700' }, 
+            { id: 'T_LAST_MONTH', title: 'LAST MONTH', color: 'bg-indigo-600' }
+        ];
         const order = ["NET_SALES", "SPD", "STD", "APC", "GM%", "GM_RP", "NET_PROFIT"];
+
         document.getElementById('data-sections').innerHTML = sections.map(s => {
             const data = currentData[s.id] || {};
             const rows = order.map(k => {
@@ -265,14 +236,16 @@ document.getElementById("display-name").innerText =
                 return `
                 <div class="flex justify-between py-3 border-b border-slate-50 px-4">
                     <span class="text-[16px] font-bold text-slate-400 uppercase">${k.replace('_',' ')}</span>
-                    ${isEditing && s.id !== 'A_IKT' && !isAuto ?
+                    ${isEditing && !isAuto ?
                         `<input id="in-${s.id}-${k}" value="${val === '0' ? '' : val}" oninput="formatInput(this, '${k}', '${s.id}')" inputmode="decimal" class="w-28 text-right bg-blue-50 border-b-2 border-blue-500 font-extrabold px-1 py-0.5 text-[12px] outline-none">` :
                         `<span id="val-${s.id}-${k}" class="text-[16px] font-extrabold ${isAuto?'text-blue-600':'text-slate-700'}">${val}</span>`}
                 </div>`;
             }).join('');
             return `<div class="glass-card shadow-lg overflow-hidden transition-transform hover:-translate-y-1"><div class="${s.color} p-4 text-white"><h5 class="text-[12px] font-black uppercase tracking-widest">${s.title}</h5></div><div class="py-2 bg-white">${rows}</div></div>`;
         }).join('');
-        updateStats(); updateChart();
+        
+        updateStats(); 
+        updateChart();
     }
 
     function updateStats() {
@@ -280,16 +253,20 @@ document.getElementById("display-name").innerText =
         const aGmRp = parseIDR(currentData.A_IKT?.GM_RP), tGmRp = parseIDR(currentData.T_IKT?.GM_RP);
         const aGmp = parsePct(currentData.A_IKT?.['GM%']), tGmp = parsePct(currentData.T_IKT?.['GM%']);
 
-        const setG = (id, v, isC = true) => { const el = document.getElementById(id); if(!el) return; el.innerText = (isC ? 'Rp ' : '') + v.toLocaleString('id-ID') + (isC ? '' : '%'); el.className = `text-xl md:text-3xl font-extrabold ${v >= 0 ? 'text-emerald-600' : 'text-red-600'}`; };
-        setG('gap-ns', aNs - tNs); setG('gap-gm', aGmRp - tGmRp); setG('gap-pct', parseFloat((aGmp - tGmp).toFixed(2)), false);
+        const setG = (id, v, isC = true) => { 
+            const el = document.getElementById(id); 
+            if(!el) return; 
+            el.innerText = (isC ? 'Rp ' : '') + v.toLocaleString('id-ID') + (isC ? '' : '%'); 
+            el.className = `text-xl md:text-3xl font-extrabold ${v >= 0 ? 'text-emerald-600' : 'text-red-600'}`; 
+        };
+        
+        setG('gap-ns', aNs - tNs); 
+        setG('gap-gm', aGmRp - tGmRp); 
+        setG('gap-pct', parseFloat((aGmp - tGmp).toFixed(2)), false);
 
-        const now = new Date();
-        const mNames = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"];
+        const currentMonthDoc = `IKT_${storeCode}_${monthNames[now.getMonth()]}_${now.getFullYear()}`;
+        const isHistory = (activeDocId !== currentMonthDoc);
 
-        const currentMonthDoc = `IKT_${storeCode}_${mNames[now.getMonth()]}_${now.getFullYear()}`;
-        const isHistory = (docId !== currentMonthDoc);
-
-        // Status tetap dihitung berdasarkan pencapaian bulanan
         if (isHistory) {
             document.getElementById('time-factor').innerText = '-';
             document.getElementById('estimasi-ns').innerText = '-';
@@ -306,8 +283,11 @@ document.getElementById("display-name").innerText =
             const dInM = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
             const dRem = Math.max(1, dInM - now.getDate() + 1);
 
-            const tf = (now.getDate() / dInM) * 100; document.getElementById('time-factor').innerText = tf.toFixed(1) + '%';
-            const est = (aNs / now.getDate()) * dInM; document.getElementById('estimasi-ns').innerText = 'Rp ' + Math.round(est).toLocaleString('id-ID');
+            const tf = (now.getDate() / dInM) * 100; 
+            document.getElementById('time-factor').innerText = tf.toFixed(1) + '%';
+            
+            const est = (aNs / now.getDate()) * dInM; 
+            document.getElementById('estimasi-ns').innerText = 'Rp ' + Math.round(est).toLocaleString('id-ID');
             document.getElementById('estimasi-pct').innerText = (tNs > 0 ? (est / tNs) * 100 : 0).toFixed(1) + '%';
             document.getElementById('proj-ns').innerText = 'Rp ' + ((tNs - aNs) > 0 ? Math.round((tNs - aNs) / dRem) : 0).toLocaleString('id-ID');
             document.getElementById('label-proyeksi').innerText = 'TARGET SPD dalam ' + dRem + ' Hari';
@@ -339,9 +319,22 @@ document.getElementById("display-name").innerText =
 
     function updateChart() {
         const ctx = document.getElementById('perfChart').getContext('2d');
-        const vals = [parseIDR(currentData.T_LAST_YEAR?.NET_SALES), parseIDR(currentData.T_LAST_MONTH?.NET_SALES), parseIDR(currentData.A_IKT?.NET_SALES), parseIDR(currentData.T_OPR?.NET_SALES), parseIDR(currentData.T_IKT?.NET_SALES)];
+        const vals = [
+            parseIDR(currentData.T_LAST_YEAR?.NET_SALES), 
+            parseIDR(currentData.T_LAST_MONTH?.NET_SALES), 
+            parseIDR(currentData.A_IKT?.NET_SALES), 
+            parseIDR(currentData.T_OPR?.NET_SALES), 
+            parseIDR(currentData.T_IKT?.NET_SALES)
+        ];
         if (myChart) myChart.destroy();
-        myChart = new Chart(ctx, { type: 'bar', data: { labels: ['LY', 'LM', 'Actual', 'OPR', 'Target'], datasets: [{ data: vals, backgroundColor: ['#cbd5e1', '#94a3b8', '#f97316', '#3b82f6', '#10b981'], borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+        myChart = new Chart(ctx, { 
+            type: 'bar', 
+            data: { 
+                labels: ['LY', 'LM', 'Actual', 'OPR', 'Target'], 
+                datasets: [{ data: vals, backgroundColor: ['#cbd5e1', '#94a3b8', '#f97316', '#3b82f6', '#10b981'], borderRadius: 6 }] 
+            }, 
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } 
+        });
     }
 </script>
 </body>
